@@ -4,15 +4,14 @@ class Argument
 {
     
     /**
-     * @var name - an argument name, e.g. foo
+     * @var name - an argument or a long option name, e.g. foo, --foo
      */
     protected $name;
 
     /**
-     * @var flags - a list of option strings, e.g. -f, --foo.
+     * @var flags - a list of option aliases,  e.g. -f, --foo-bar.
      */
-    protected $shortOption;
-    protected $longOption;
+    protected $aliases = array();
     
     /**
      * @var dest - The name of the attribute to be added to the object returned by parse_args().
@@ -67,55 +66,51 @@ class Argument
 
     public static function create($name)
     {
-        $args = func_num_args()
-        
-        if($args < 1)
-        {
-            throw new Exception("Too few method's argument");
-        }
-        else
-        {
-            $name = array_shift($args);
-            $short = $dest = $help = NULL;
-        }
-
-        if(!empty($args))
-        {
-            $short = !$this->isOption($name) ? NULL: array_shift($args);            
-        }
-       
-        if(!empty($args))
-        {
-            $dest = array_shift($args);
-        }
-
-        if(!empty($args))
-        {
-            $help = array_shift($args);
-        }
-
-        return const($name, $short, $dest, $help);
+        return call_user_func_array(array(static, '__construct'), func_get_args());
     }
 
-    public function __construct($name, $short = NULL, $dest=NULL, $help=NULL)
+    public function __construct($name)
     {
-        if($this->isOption($name))
+        foreach(func_get_args() as $argv)
         {
-            $this->longName = $this->trim($name); //ltrim($name, '-');
-        }
-        else
-        {
-            $this->name = $name;
+            if($this->isLongOption($argv))
+            {
+                if(empty($this->name))
+                {
+                    $this->name = $this->trim($argv); //ltrim($name, '-');
+                }
+                else
+                {
+                    $this->aliases[] = $this->trim($argv); //ltrim($name, '-');
+                }
+            }
+            elseif($this->isShortOption($argv))
+            {
+                $this->aliases[] = $this->trim($argv); //ltrim($name, '-');
+            }
+            else // this is a positional argument
+            {
+                $this->name = $argv;
+                break; // all the rest function arguments are skipped
+                $this->aliases = array(); // the positional argument can't have any aliases
+            }   
         }
 
-        if(!is_null($short))
+        // if there aren't any long option
+        if(!empty($this->aliases) && is_null($this->name))
         {
-            $this->shortName = $this->trim($short);
+            $this->name = array_shift($this->aliases);
         }
+    }
 
-        $this->dest = !is_null($dest) ? $dest : $this->trim($name);
-
-        $this->help = $help;
+    public function getDest()
+    {
+        if(is_null($this->dest))
+        {
+            $this->dest = $this->name;
+        }
+        
+        return $this->dest;
     }
 
 }
