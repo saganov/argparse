@@ -7,44 +7,28 @@
 
 class Argparse
 {
+    protected $_prog;
+    protected $_description;
+
+    protected $_arguments  = array();
+    protected $_options    = array();
+    protected $_subparsers = array();
+
+    protected $_raw     = array();
     protected $_context = array();
-    protected $_raw = array();
-    protected $_arguments = array();
-    protected $_options   = array();
-    protected $_subparser = array();
 
     /**
-     * Create a new ArgumentParser object.
+     * @ brief Create a new ArgumentParser object.
      *
-     * All parameters should be passed as keyword arguments.
-     * Each parameter has its own more detailed description below,
-     * but in short they are:
-     *
-     *  prog - The name of the program (default: sys.argv[0])
-     *  usage - The string describing the program usage (default: generated from arguments added to parser)
-     *  description - Text to display before the argument help (default: none)
-     *  epilog - Text to display after the argument help (default: none)
-     *  parents - A list of ArgumentParser objects whose arguments should also be included
-     *  formatter_class - A class for customizing the help output
-     *  prefix_chars - The set of characters that prefix optional arguments (default: ‘-‘)
-     *  fromfile_prefix_chars - The set of characters that prefix files from which additional arguments should be read (default: None)
-     *  argument_default - The global default value for arguments (default: None)
-     *  conflict_handler - The strategy for resolving conflicting optionals (usually unnecessary)
-     *  add_help - Add a -h/–help option to the parser (default: True)
-     *
+     *  @param string $prog        name of the program (default: $argv[0])
+     *  @param srring $description text to display before the argument help (default: empty)
      */
-    public function __construct($prog = null)
+    public function __construct($prog = null, $description = '')
     {
-        $this->prog = ($prog ?: $_SERVER['argv'][0]);
-    }
+        $this->_prog = ($prog ?: $_SERVER['argv'][0]);
+        $this->_description = ($description ? "\n\n$description" : '');
 
-    public function init(array $args = array())
-    {
-        $this->_raw = ($args ?: $this->getRemainder());
-        $this->_context = array();
-        $this->_arguments = array();
-        $this->_options   = array();
-        return $this;
+        $this->addArgument('--help -h', 0, null, false, 'show this help message and exit');
     }
 
     public function __get($label)
@@ -57,20 +41,61 @@ class Argparse
         return (array_key_exists($label, $this->_context));
     }
 
-    public function addSubcontext($name, Context $context)
+    public function addSubparsers($title = 'subcommands', $description = '', $help = '')
     {
-        $this->_subcontext[$name] = $context;
+        $subparsers = new Subparsers($title, $description, $help);
+        $this->_arguments[] = array(
+            'name'       => "{SUBCOMMAND}",
+            'subparsers' => $subparsers,
+            'position'   => count($this->_arguments),
+            'help'       => $help
+                                    );
+        return $subparsers;
     }
 
-    public function addArgument($name, $nargs = 1, $default = null, $required = null)
+    /*
+     * @brief Define how a single command-line argument should be parsed.
+     *
+     * name or flags - Either a name or a list of option strings, e.g. foo or -f, --foo.
+     * action - The basic type of action to be taken when this argument is encountered at the command line.
+     * nargs - The number of command-line arguments that should be consumed.
+     * const - A constant value required by some action and nargs selections.
+     * default - The value produced if the argument is absent from the command line.
+     * type - The type to which the command-line argument should be converted.
+     * choices - A container of the allowable values for the argument.
+     * required - Whether or not the command-line option may be omitted (optionals only).
+     * help - A brief description of what the argument does.
+     * metavar - A name for the argument in usage messages.
+     * dest - The name of the attribute to be added to the object returned by parse_args().
+     *
+     */
+    public function addArgument($name, $nargs = 1, $default = null, $required = null, $help = '')
     {
-        $arg = array('nargs'    => $nargs,
-                     'default'  => $default,
-                     'required' => $required);
+        $arg = array(
+            'name'     => $name,
+            'nargs'    => $nargs,
+            'default'  => $default,
+            'required' => $required,
+            'help'     => $help);
         if (strpos($name, '-') !== false) // Optional argument specified
         {
-            $arg['options'] = preg_split('/\s/', $name);
-            $name = ltrim($arg['options'][0], '-');
+            $option = preg_split('/\s/', $name);
+            if(count($option) == 1)
+            {
+                $arg['long'] = $option[0];
+                $arg['short'] = false;
+            }
+            elseif(strlen($option[0]) > strlen($option[1]))
+            {
+                $arg['long'] = $option[0];
+                $arg['short'] = $option[1];
+            }
+            else
+            {
+                $arg['long'] = $option[1];
+                $arg['short'] = $option[0];
+            }
+            $name = $arg['name'] = ltrim($arg['long'], '-');
             if(is_null($required)) $arg['required'] = false;
 
             $this->_options[$name] = $arg;
@@ -86,6 +111,57 @@ class Argparse
         $this->_context[$name] = $default;
 
         return $this;
+    }
+
+    protected function array2string(array $data, $callback, $wrapper = '%s')
+    {
+        return ($data ? sprintf($wrapper, array_reduce($data, $callback)) : '');
+    }
+
+    protected function usage()
+    {
+        return $this->array2string(
+            $this->_options,
+            function($res, $opt){ return $res .= '['. ($opt['short'] ?: $opt['long']) .'] '; },
+            "usage: {$this->_prog} %s"
+                                   )
+            . $this->array2string(
+                $this->_arguments,
+                function($res, $arg){ return $res .= "{$arg['name']} "; }
+                                  );
+    }
+
+    protected function help()
+    {
+        $arguments = $this->array2string(
+            $this->_arguments,
+            function($res, $arg){ return $res .= "\t{$arg['name']}\t\t{$arg['help']}\n"; },
+            "positional arguments:\n%s"
+                                         );
+        $options   = $this->array2string(
+            $this->_options,
+            function($res, $opt){ return $res .= "\t". ($opt['short'] ? $opt['short'] .', ' : '') . $opt['long'] ."\t\t{$opt['help']}\n"; },
+            "optional arguments:\n%s"
+                                         );
+        $subcommands   = $this->array2string(
+            $this->_options,
+            function($res, $opt){ return $res .= "\t". ($opt['short'] ? $opt['short'] .', ' : '') . $opt['long'] ."\t\t{$opt['help']}\n"; },
+            "optional arguments:\n%s"
+                                         );
+
+        $help = <<<EOD
+{$this->usage()}{$this->_description}
+
+{$arguments}
+{$options}
+
+EOD;
+        return $help;
+    }
+
+    public function printHelp()
+    {
+        echo $this->help();
     }
 
     public function parse(array $args = array())
@@ -192,3 +268,25 @@ class Argparse
 
 class MissedOptionException extends \Exception {}
 class MissedArgumentException extends \Exception {}
+
+
+class Subparsers
+{
+    protected $title;
+    protected $description;
+    protected $help;
+
+    protected $parsers = array();
+
+    public function __construct($title = 'subcommands', $description = '', $help = '')
+    {
+        $this->title = $title;
+        $this->description = $description;
+        $this->help = $help;
+    }
+
+    public function addParser($name, $prog = null, $description = '')
+    {
+        return $this->parsers[$name] = new Argparse($prog, $description);
+    }
+}

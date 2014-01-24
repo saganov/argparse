@@ -3,13 +3,33 @@
 require __DIR__.'/../src/Argparse.php';
 
 echo "====== Test argparser =====\n";
-$test = new Argparse('Test');
-var_dump($test);
+$test = new Argparse('Test', 'Test programm to test');
+//var_dump($test);
+$test->addArgument('bar');
+$test->addArgument('zab');
+$test->addArgument('--foo');
+$test->addArgument('--hah');
+
+$subparsers = $test->addSubparsers('subcommands',
+                                   'valid subcommands',
+                                   'Subcommands help');
+// create the parser for the "a" command
+$parser_a = $subparsers->addParser('a'); //('a', help='a help');
+$parser_a->addArgument('bar'); //('bar', type=int, help='bar help');
+
+// create the parser for the "b" command
+$parser_b = $subparsers->addParser('b'); //('b', help='b help');
+$parser_b->addArgument('--baz'); //('--baz', choices='XYZ', help='baz help');
+
+
+$test->printHelp();
 
 
 echo "====== Anonimous argparser =====\n";
 $anonim = new Argparse();
-var_dump($anonim);
+//var_dump($anonim);
+$anonim->addArgument('bar');
+$anonim->printHelp();
 
 
 
