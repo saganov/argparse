@@ -127,7 +127,16 @@ class Argparse
                                    )
             . $this->array2string(
                 $this->_arguments,
-                function($res, $arg){ return $res .= "{$arg['name']} "; }
+                function($res, $arg){
+		  if(isset($arg['subparsers']) && is_a($arg['subparsers'], 'Subparsers'))
+		  {
+		      return $res .= $arg['subparsers']->listNames(', ', '{%s}');
+		  }
+		  else
+		  {
+		      return $res .= "{$arg['name']} ";
+		  }
+		}
                                   );
     }
 
@@ -135,7 +144,16 @@ class Argparse
     {
         $arguments = $this->array2string(
             $this->_arguments,
-            function($res, $arg){ return $res .= "\t{$arg['name']}\t\t{$arg['help']}\n"; },
+            function($res, $arg){
+	        if(isset($arg['subparsers']) && is_a($arg['subparsers'], 'Subparsers'))
+		{
+		  return $res .= "\t". $arg['subparsers']->listNames(', ', '{%s}') ."\t\t{$arg['help']}\n";
+		}
+	        else
+		{
+		    return $res .= "\t{$arg['name']}\t\t{$arg['help']}\n"; 
+		}
+	    },
             "positional arguments:\n%s"
                                          );
         $options   = $this->array2string(
@@ -143,12 +161,6 @@ class Argparse
             function($res, $opt){ return $res .= "\t". ($opt['short'] ? $opt['short'] .', ' : '') . $opt['long'] ."\t\t{$opt['help']}\n"; },
             "optional arguments:\n%s"
                                          );
-        $subcommands   = $this->array2string(
-            $this->_options,
-            function($res, $opt){ return $res .= "\t". ($opt['short'] ? $opt['short'] .', ' : '') . $opt['long'] ."\t\t{$opt['help']}\n"; },
-            "optional arguments:\n%s"
-                                         );
-
         $help = <<<EOD
 {$this->usage()}{$this->_description}
 
@@ -288,5 +300,17 @@ class Subparsers
     public function addParser($name, $prog = null, $description = '')
     {
         return $this->parsers[$name] = new Argparse($prog, $description);
+    }
+
+    public function listParsers()
+    {
+        return $this->parsers;
+    }
+
+    public function listNames($separator = null, $format = '%s')
+    {
+      $list = array_keys($this->parsers);
+      if (is_null($separator)) return $list;
+      else return sprintf($format, implode($separator, $list));
     }
 }
