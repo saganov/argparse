@@ -10,25 +10,28 @@ $test->addArgument('zab');
 $test->addArgument('--foo');
 $test->addArgument('--hah');
 
+/*
 $subparsers = $test->addSubparsers('subcommands',
                                    'valid subcommands',
                                    'Subcommands help');
 // create the parser for the "a" command
 $parser_a = $subparsers->addParser('a'); //('a', help='a help');
-$parser_a->addArgument('bar'); //('bar', type=int, help='bar help');
+$parser_a->addArgument('bazaa'); //('bar', type=int, help='bar help');
 
 // create the parser for the "b" command
 $parser_b = $subparsers->addParser('b'); //('b', help='b help');
-$parser_b->addArgument('--baz'); //('--baz', choices='XYZ', help='baz help');
-
-
-$test->printHelp();
+$parser_b->addArgument('--bazbb'); //('--baz', choices='XYZ', help='baz help');
+*/
+$test->parse(array('BAR', 'ZAB', '--hah', 'a', 'BAZAA'));
+$test->debug();
+//$test->printHelp();
 
 
 echo "====== Anonimous argparser =====\n";
 $anonim = new Argparse();
 //var_dump($anonim);
 $anonim->addArgument('bar');
+$anonim->parse();
 $anonim->printHelp();
 
 

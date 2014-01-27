@@ -28,7 +28,7 @@ class Argparse
         $this->_prog = ($prog ?: $_SERVER['argv'][0]);
         $this->_description = ($description ? "\n\n$description" : '');
 
-        $this->addArgument('--help -h', 0, null, false, 'show this help message and exit');
+        $this->addArgument('--help -h', 0, false, false, 'show this help message and exit');
     }
 
     public function __get($label)
@@ -95,20 +95,18 @@ class Argparse
                 $arg['long'] = $option[1];
                 $arg['short'] = $option[0];
             }
-            $name = $arg['name'] = ltrim($arg['long'], '-');
+            $arg['name'] = ltrim($arg['long'], '-');
             if(is_null($required)) $arg['required'] = false;
 
-            $this->_options[$name] = $arg;
+            $this->_options[$arg['long']] = $arg;
+            if(isset($arg['short'])) $this->_options[$arg['short']] = $arg;
         }
         else                              // Positional argument specified
         {
             if(is_null($required)) $arg['required'] = true;
-            $arg['position'] = count($this->_arguments);
-
-            $this->_arguments[$name] = $arg;
+            $this->_arguments[count($this->_arguments)] = $arg;
+            if(!$arg['required']) $this->_context[$name] = $arg['default'];
         }
-
-        $this->_context[$name] = $default;
 
         return $this;
     }
@@ -120,24 +118,23 @@ class Argparse
 
     protected function usage()
     {
-        return $this->array2string(
-            $this->_options,
-            function($res, $opt){ return $res .= '['. ($opt['short'] ?: $opt['long']) .'] '; },
-            "usage: {$this->_prog} %s"
-                                   )
+        return
+            $this->array2string(
+                $this->_options,
+                function($res, $opt){ return $res .= '['. ($opt['short'] ?: $opt['long']) .'] '; },
+                "usage: {$this->_prog} %s")
             . $this->array2string(
                 $this->_arguments,
                 function($res, $arg){
-		  if(isset($arg['subparsers']) && is_a($arg['subparsers'], 'Subparsers'))
-		  {
-		      return $res .= $arg['subparsers']->listNames(', ', '{%s}');
-		  }
-		  else
-		  {
-		      return $res .= "{$arg['name']} ";
-		  }
-		}
-                                  );
+                    if(isset($arg['subparsers']) && is_a($arg['subparsers'], 'Subparsers'))
+                    {
+                        return $res .= $arg['subparsers']->listNames(', ', '{%s}');
+                    }
+                    else
+                    {
+                        return $res .= "{$arg['name']} ";
+                    }
+                });
     }
 
     protected function help()
@@ -145,15 +142,15 @@ class Argparse
         $arguments = $this->array2string(
             $this->_arguments,
             function($res, $arg){
-	        if(isset($arg['subparsers']) && is_a($arg['subparsers'], 'Subparsers'))
-		{
-		  return $res .= "\t". $arg['subparsers']->listNames(', ', '{%s}') ."\t\t{$arg['help']}\n";
-		}
-	        else
-		{
-		    return $res .= "\t{$arg['name']}\t\t{$arg['help']}\n"; 
-		}
-	    },
+                if(isset($arg['subparsers']) && is_a($arg['subparsers'], 'Subparsers'))
+                {
+                    return $res .= "\t". $arg['subparsers']->listNames(', ', '{%s}') ."\t\t{$arg['help']}\n";
+                }
+                else
+                {
+                    return $res .= "\t{$arg['name']}\t\t{$arg['help']}\n";
+                }
+            },
             "positional arguments:\n%s"
                                          );
         $options   = $this->array2string(
@@ -176,105 +173,81 @@ EOD;
         echo $this->help();
     }
 
+    protected function extractArgument($argument, &$remainder, $default)
+    {
+        $val = array();
+        $nargs = $argument['nargs'];
+        while ($nargs--)
+        {
+            if(!isset($remainder[0])) throw new MissedArgumentException("Argument '{$argument['name']}' requires '{$argument['nargs']}' argument(s)");
+            $val[] = $remainder[0];
+            $remainder = array_slice($remainder, 1);
+        }
+
+        if(count($val) === 0 && $argument['required'])
+        {
+            throw new MissedArgumentException("Argument '{$argument['name']}' is required");
+        }
+        elseif(count($val) === 0)
+        {
+            $val = $default;
+        }
+        elseif(count($val) === 1)
+        {
+            $val = $val[0];
+        }
+
+        return $val;
+    }
+
     public function parse(array $args = array())
     {
         $this->_raw = ($args ?: array_slice($_SERVER['argv'], 1));
 
-        // Optional Arguments processed
-        foreach ($this->_options as $name => $data)
+        $position = 0;
+        $remainder = $this->_raw;
+        while (count($remainder))
         {
-            foreach($data['options'] as $option)
+            $arg = $remainder[0];
+            if (strpos($arg, '-') !== false) // Optional Argument
             {
-                if(false !== $index = array_search($option, $this->_raw))
+                if(isset($this->_options[$arg]))
                 {
-                    $this->_context[$name] = true;
-                    unset($this->_raw[$index]);
-                    if($data['nargs'] == 1)
-                    {
-                        $index++;
-                        if(!isset($this->_raw[$index])) throw new MissedArgumentException("Option '{$name}' requires argument");
-                        $this->_context[$name] = $this->_raw[$index];
-                        unset($this->_raw[$index]);
-                    }
-                    elseif($data['nargs'] > 1)
-                    {
-                        while($data['nargs']--)
-                        {
-                            $index++;
-                            if(!isset($this->_raw[$index])) throw new MissedArgumentException("Missed {$data['nargs']} argument(s) of '{$name}'");
-                            $this->_context[$name][] = $this->_raw[$index];
-                            unset($this->_raw[$index]);
-                        }
-                    }
-                    break;
+                    $remainder = array_slice($remainder, 1);
+                    $this->_context[$this->_options[$arg]['name']] = $this->extractArgument($this->_options[$arg], $remainder, true);
+                }
+                else
+                { // Option has not been specified
                 }
             }
-
-            if($data['required'] && (!isset($this->_context[$name]) || is_null($this->_context[$name])))
+            else  // Positional Argument
             {
-                throw new MissedOptionException("Option '{$name}' is required");
+                if (isset($this->_arguments[$position]) && isset($this->_arguments[$position]['subparsers']) && is_a($this->_arguments[$position]['subparsers'], 'Subparsers'))
+                {
+                    $this->_context += $this->_arguments[$position]['subparsers']->getParser($arg)->parse();
+                }
+                elseif (isset($this->_arguments[$position]))
+                {
+                    $this->_context[$this->_arguments[$position]['name']] = $this->extractArgument($this->_arguments[$position], $remainder, $arg);
+                }
+                else
+                { // Argument has not been specified
+                }
+                $position++;
             }
         }
 
-        // Process Positional arguments
-        foreach ($this->_arguments as $name => $data)
-        {
-            $rawOptions = array();
-            $index = 0;
-            foreach($this->_raw as $argument)
-            {
-                if (strpos($argument, '-') !== false)
-                {
-                    $rawOptions[] = $argument;
-                    continue;
-                }
-                if($index == $data['position'])
-                {
-                    $this->_context[$name] = $argument;
-                    if($data['nargs'] > 1)
-                    {
-                        $this->_context[$name] = (array)$this->_context[$name];
-                        $idx = $index;
-                        while($data['nargs']--)
-                        {
-                            $idx++;
-                            if(!isset($this->_raw[$idx])) throw new MissedArgumentException("Missed {$data['nargs']} argument(s) of the {$name}");
-                            $this->_context[$name][] = $this->_raw[$idx];
-                        }
-                    }
-                }
-                $index++;
-            }
-
-            if($data['required'] && (!isset($this->_context[$name]) || is_null($this->_context[$name])))
-            {
-                throw new MissedArgumentException("Argument '{$name}' is required");
-            }
-        }
-        $this->_raw = $rawOptions + array_slice($this->_raw, count($this->_arguments) + count($rawOptions));
-
-        // Process Sub Contextes
-        foreach($this->_raw as $argument)
-        {
-            if (strpos($argument, '-') !== false)
-            {
-                $rawOptions[] = $argument;
-                continue;
-            }
-
-            if(isset($this->_subcontext[$argument]))
-            {
-                $this->_context += $this->_subcontext[$argument]->parse();
-            }
-            break;
-        }
-
-        return $this->_context;
+        return $remainder;
     }
 
     public function getRemainder()
     {
         return $this->_raw;
+    }
+
+    public function debug()
+    {
+        var_dump($this->_context);
     }
 }
 
@@ -302,6 +275,11 @@ class Subparsers
         return $this->parsers[$name] = new Argparse($prog, $description);
     }
 
+    public function getParser($name)
+    {
+        return (isset($this->parsers[$name]) ? $this->parsers[$name] : null);
+    }
+
     public function listParsers()
     {
         return $this->parsers;
@@ -309,8 +287,8 @@ class Subparsers
 
     public function listNames($separator = null, $format = '%s')
     {
-      $list = array_keys($this->parsers);
-      if (is_null($separator)) return $list;
-      else return sprintf($format, implode($separator, $list));
+        $list = array_keys($this->parsers);
+        if (is_null($separator)) return $list;
+        else return sprintf($format, implode($separator, $list));
     }
 }
