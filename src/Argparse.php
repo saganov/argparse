@@ -16,6 +16,7 @@ class Argparse
 
     protected $_raw     = array();
     protected $_context = array();
+    protected $_remainder = array();
 
     /**
      * @ brief Create a new ArgumentParser object.
@@ -45,6 +46,7 @@ class Argparse
     {
         $subparsers = new Subparsers($title, $description, $help);
         $this->_arguments[] = array(
+	    'type'       => 'subparsers',
             'name'       => "{SUBCOMMAND}",
             'subparsers' => $subparsers,
             'position'   => count($this->_arguments),
@@ -79,6 +81,7 @@ class Argparse
             'help'     => $help);
         if (strpos($name, '-') !== false) // Optional argument specified
         {
+	    $arg['type'] = 'option';
             $option = preg_split('/\s/', $name);
             if(count($option) == 1)
             {
@@ -95,20 +98,37 @@ class Argparse
                 $arg['long'] = $option[1];
                 $arg['short'] = $option[0];
             }
-            $arg['name'] = ltrim($arg['long'], '-');
+            $name = $arg['name'] = ltrim($arg['long'], '-');
             if(is_null($required)) $arg['required'] = false;
 
-            $this->_options[$arg['long']] = $arg;
-            if(isset($arg['short'])) $this->_options[$arg['short']] = $arg;
+            $this->_arguments[$name] = $arg;
+	    $this->_options[$arg['long']] = $name;
+            if($arg['short']) $this->_options[$arg['short']] = $name;
         }
         else                              // Positional argument specified
         {
+	    $arg['type'] = 'argument';
             if(is_null($required)) $arg['required'] = true;
-            $this->_arguments[count($this->_arguments)] = $arg;
+            $this->_arguments[$this->nextPosition()] = $arg;
             if(!$arg['required']) $this->_context[$name] = $arg['default'];
         }
 
         return $this;
+    }
+
+    protected function nextPosition()
+    {
+      return count(array_filter(array_keys($this->_arguments), 'is_numeric'));
+    }
+
+    protected function options()
+    {
+      return array_filter($this->_arguments, function($arg){return $arg['type'] == 'option';});
+    }
+
+    protected function positions()
+    {
+      return array_filter($this->_arguments, function($arg){return in_array($arg['type'], array('argument', 'subparsers'));});
     }
 
     protected function array2string(array $data, $callback, $wrapper = '%s')
@@ -120,13 +140,13 @@ class Argparse
     {
         return
             $this->array2string(
-                $this->_options,
-                function($res, $opt){ return $res .= '['. ($opt['short'] ?: $opt['long']) .'] '; },
+		$this->options(),
+                function($res, $arg){ return $res .= '['. ($arg['short'] ?: $arg['long']) .'] '; },
                 "usage: {$this->_prog} %s")
             . $this->array2string(
-                $this->_arguments,
+		$this->positions(),
                 function($res, $arg){
-                    if(isset($arg['subparsers']) && is_a($arg['subparsers'], 'Subparsers'))
+                    if($arg['type'] == 'subparsers' && is_a($arg['subparsers'], 'Subparsers'))
                     {
                         return $res .= $arg['subparsers']->listNames(', ', '{%s}');
                     }
@@ -140,7 +160,7 @@ class Argparse
     protected function help()
     {
         $arguments = $this->array2string(
-            $this->_arguments,
+	    $this->positions(),
             function($res, $arg){
                 if(isset($arg['subparsers']) && is_a($arg['subparsers'], 'Subparsers'))
                 {
@@ -154,7 +174,7 @@ class Argparse
             "positional arguments:\n%s"
                                          );
         $options   = $this->array2string(
-            $this->_options,
+	    $this->options(),
             function($res, $opt){ return $res .= "\t". ($opt['short'] ? $opt['short'] .', ' : '') . $opt['long'] ."\t\t{$opt['help']}\n"; },
             "optional arguments:\n%s"
                                          );
@@ -205,55 +225,64 @@ EOD;
         $this->_raw = ($args ?: array_slice($_SERVER['argv'], 1));
 
         $position = 0;
-        $remainder = $this->_raw;
-        while (count($remainder))
+	$remainder = array();
+        while (count($this->_raw))
         {
-            $arg = $remainder[0];
+            $arg = $this->_raw[0];
             if (strpos($arg, '-') !== false) // Optional Argument
             {
                 if(isset($this->_options[$arg]))
                 {
-                    $remainder = array_slice($remainder, 1);
-                    $this->_context[$this->_options[$arg]['name']] = $this->extractArgument($this->_options[$arg], $remainder, true);
+		    $option = $this->_arguments[$this->_options[$arg]];
+		    $this->_raw = array_slice($this->_raw, 1);
+                    $this->_context[$option['name']] = $this->extractArgument($option, $this->_raw, true);
                 }
                 else
                 { // Option has not been specified
+		  $remainder[] = $arg;
+		  $this->_raw = array_slice($this->_raw, 1);
                 }
             }
             else  // Positional Argument
             {
                 if (isset($this->_arguments[$position]) && isset($this->_arguments[$position]['subparsers']) && is_a($this->_arguments[$position]['subparsers'], 'Subparsers'))
                 {
-                    $this->_context += $this->_arguments[$position]['subparsers']->getParser($arg)->parse();
+		    $subparser = $this->_arguments[$position]['subparsers']->getParser($arg);
+		    if(is_null($subparser)) throw new UndeclaredSubparserException("Unknown subparser '{$arg}'");
+		    $this->_raw = array_slice($this->_raw, 1);
+                    $this->_context += $subparser->parse($this->_raw);
+		    $this->_raw = $subparser->remainder();
                 }
                 elseif (isset($this->_arguments[$position]))
                 {
-                    $this->_context[$this->_arguments[$position]['name']] = $this->extractArgument($this->_arguments[$position], $remainder, $arg);
+                    $this->_context[$this->_arguments[$position]['name']] = $this->extractArgument($this->_arguments[$position], $this->_raw, $arg);
                 }
                 else
                 { // Argument has not been specified
+		  $remainder[] = $arg;
+		  $this->_raw = array_slice($this->_raw, 1);
                 }
                 $position++;
             }
         }
 
-        return $remainder;
+	$this->_remainder = $remainder;
+        return $this->_context;
     }
 
-    public function getRemainder()
+    public function remainder()
     {
-        return $this->_raw;
+        return $this->_remainder;
     }
 
     public function debug()
     {
-        var_dump($this->_context);
+      return $this->_context;
     }
 }
 
 class MissedOptionException extends \Exception {}
 class MissedArgumentException extends \Exception {}
-
 
 class Subparsers
 {
@@ -292,3 +321,5 @@ class Subparsers
         else return sprintf($format, implode($separator, $list));
     }
 }
+
+class UndeclaredSubparserException extends \Exception {}
