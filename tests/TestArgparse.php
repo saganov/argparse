@@ -55,9 +55,22 @@ printf("CONTEXT: ");
 var_dump($anonim->debug());
 
 
+echo "====== Real argparser =====\n";
 
+$vmCli = new Argparse('VM', 'The tool to work with virtual machines.');
+$command = $vmCli->addSubparsers('Commands', 'Valid Commands', 'Main command of the VM tool');
+$tune  = $command->addParser('tune',  'TUNE',  'Tune VM. Set hostname, NFS etc.');
+$share = $command->addParser('share', 'SHARE', 'Clear VM from personal data and upload a disc image to public dir.');
+$prepare = $command->addParser('prepare-dev', 'PREPARE-DEV', 'Create symlinks on the VM for specified instance.');
+$prepare->addArgument('name', array('help' => 'Instance name. If the name is not specified, the value of config option "vm_hostname" without .ua3 is used.'));
 
+$vmCli->printHelp();
 
+$input = array('tune', 'b', '--bazbb', 'BAZBB');
+printf("INPUT: %s\n", implode(' ', $input));
+$vmCli->parse($input);
+printf("CONTEXT: ");
+var_dump($vmCli->debug());
 
 
 
