@@ -3,7 +3,10 @@
 require __DIR__.'/../src/Argparse.php';
 
 $vmCli = new Argparse('VM', 'The tool to work with virtual machines.');
-$command = $vmCli->addSubparsers('COMMANDS', 'Run `vm help <command>` to get detail help ', 'Main command of the VM tool');
+$command = $vmCli->addSubparsers('COMMANDS',
+                                 'Run `vm <command> --help` to get detail help ',
+                                 'Main command of the VM tool',
+                                 'VM ');
 // VM Commands
 // TUNE
 $tune  = $command->addParser('tune',

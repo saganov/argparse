@@ -71,9 +71,9 @@ class Argparse
         return $this->_description;
     }
 
-    public function addSubparsers($title = 'subcommands', $description = '', $help = '')
+    public function addSubparsers($title = 'subcommands', $description = '', $help = '', $prefix = '')
     {
-        $subparsers = new Subparsers($title, $description, $help);
+        $subparsers = new Subparsers($title, $description, $help, $prefix);
         $this->_arguments[] = array(
             'type'       => 'subparsers',
             'name'       => "{{$title}}",
@@ -343,14 +343,16 @@ class Subparsers
     protected $title;
     protected $description;
     protected $help;
+    protected $prefix;
 
     protected $parsers = array();
 
-    public function __construct($title = 'subcommands', $description = '', $help = '')
+    public function __construct($title = 'subcommands', $description = '', $help = '', $prefix = '')
     {
         $this->title = $title;
         $this->description = $description;
         $this->help = $help;
+        $this->prefix = $prefix;
     }
 
     public function title()
@@ -365,7 +367,7 @@ class Subparsers
 
     public function addParser($name, $prog = null, $description = '', $action = 'help')
     {
-        return $this->parsers[$name] = new Argparse($prog, $description, $action);
+        return $this->parsers[$name] = new Argparse($this->prefix . $prog, $description, $action);
     }
 
     public function getParser($name)
