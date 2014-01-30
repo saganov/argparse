@@ -15,7 +15,6 @@ class Argparse
     protected $_options    = array();
     protected $_subparsers = array();
 
-    protected $_raw     = array();
     protected $_context = array();
     protected $_remainder = array();
 
@@ -77,6 +76,7 @@ class Argparse
         $this->_arguments[] = array(
             'type'       => 'subparsers',
             'name'       => "{{$title}}",
+            'usage'      => "{{$title}}",
             'subparsers' => $subparsers,
             'position'   => count($this->_arguments),
             'help'       => $help
@@ -145,6 +145,11 @@ class Argparse
             }
             $name = $options['name'] = ltrim($options['long'], '-');
             if(is_null($options['required'])) $options['required'] = false;
+            $options['usage'] = ($options['short'] ?: $options['long']) . str_repeat(' arg ', $options['nargs']);
+            if(!$options['required'])
+            {
+                $options['usage'] = '['.$options['usage'].']';
+            }
 
             $this->_arguments[$name] = $options;
 
@@ -155,6 +160,11 @@ class Argparse
         {
             $options['type'] = 'argument';
             if(is_null($options['required'])) $options['required'] = true;
+            $options['usage'] = $name . str_repeat(" $name ", $options['nargs']-1);
+            if(!$options['required'])
+            {
+                $options['usage'] = '['.$options['usage'].']';
+            }
 
             $this->_arguments[$this->nextPosition()] = $options;
         }
@@ -186,23 +196,34 @@ class Argparse
     protected function usage($format = '%s')
     {
         return sprintf($format,
-                       $this->array2string(
+                       array_reduce(
                            $this->arguments('option'),
-                           function($str, $arg){ return $str .= '['. ($arg['short'] ?: $arg['long']) .'] '; })
-                       . $this->array2string(
+                           function($str, $arg){ return $str .= $arg['usage'] .' '; })
+                       . array_reduce(
                            $this->arguments('argument', 'subparsers'),
-                           function($str, $arg){ return $str .= "{$arg['name']} "; }));
+                           function($str, $arg){ return $str .= $arg['usage'] .' '; }));
+    }
+
+    public function formatArgumentHelp($name, $help, $name_pad = "\t", $help_pad = "\t\t", $glue = "\n")
+    {
+        $help = $this->formatText($help, $help_pad, 75);
+        return "{$name_pad}{$name}$glue{$help}\n";
+    }
+
+    public function formatText($text, $pad = "", $wrap = 75)
+    {
+        return $pad . implode("\n".$pad, explode("\n", wordwrap($text, $wrap - strlen($pad))));
     }
 
     protected function helpString()
     {
         $arguments = $this->array2string(
             $this->arguments('argument'),
-            function($str, $arg){ return $str .= "\t{$arg['name']}\n\t\t{$arg['help']}\n"; },
+            function($str, $arg){ return $str .= $this->formatArgumentHelp($arg['name'], $arg['help']); },
             "ARGUMENTS:\n%s");
         $options = $this->array2string(
             $this->arguments('option'),
-            function($str, $opt){ return $str .= "\t". ($opt['short'] ? $opt['short'] .', ' : '') . $opt['long'] ."\n\t\t{$opt['help']}\n"; },
+            function($str, $opt){ return $str .= $this->formatArgumentHelp(($opt['short'] ? $opt['short'] .', ' : '') . $opt['long'], $opt['help']); },
             "OPTIONS:\n%s"
                                          );
         $subparsers = $this->array2string(
@@ -210,12 +231,12 @@ class Argparse
             function($str, $arg){
                 $str .= $arg['subparsers']->title().":\n";
                 $description = $arg['subparsers']->description();
-                if ($description) $str .= "\t${description}\n\n";
-                return $str .= $arg['subparsers']->helpLines();
+                if ($description) $str .= $this->formatText($description, "\t")."\n\n";
+                return $str .= $arg['subparsers']->help();
             }
                                           );
-        $help = $this->usage("USAGE: {$this->_prog} %s") ."\n";
-        if (!empty($this->_description)) $help .= "\n". $this->_description ."\n\n";
+        $help = $this->formatText($this->usage("USAGE: {$this->_prog} %s")) ."\n";
+        if (!empty($this->_description)) $help .= "\n". $this->formatText($this->_description) ."\n\n";
         if (!empty($arguments))          $help .= $arguments ."\n";
         if (!empty($options))            $help .= $options   ."\n";
         if (!empty($subparsers))         $help .= $subparsers."\n";
@@ -226,24 +247,25 @@ class Argparse
     public function parse($args = null)
     {
         if(is_null($args)) $args = array_slice($_SERVER['argv'], 1);
-        $this->_raw = (array)$args;
+        $args = (array)$args;
 
-        if(empty($this->_raw) && is_callable($this->_action)) call_user_func($this->_action);
+        if(empty($args) && is_callable($this->_action)) call_user_func($this->_action);
 
         $position = 0;
         $remainder = array();
-        while (count($this->_raw))
+        while (count($args))
         {
-            $arg = array_shift($this->_raw);
+            $arg = $args[0];
             if (strpos($arg, '-') === 0) // Optional Argument
             {
+                array_shift($args);
                 if(isset($this->_options[$arg]))
                 {
                     $option = $this->_arguments[$this->_options[$arg]];
                     call_user_func($option['action'],
                                    $option,
-                                   array_slice($this->_raw, 0, $option['nargs']));
-                    $this->_raw = array_slice($this->_raw, $option['nargs']);
+                                   array_slice($args, 0, $option['nargs']));
+                    $args = array_slice($args, $option['nargs']);
                 }
                 else // Option has not been specified
                 {
@@ -254,23 +276,23 @@ class Argparse
             {
                 if (isset($this->_arguments[$position]) && $this->_arguments[$position]['type'] == 'subparsers')
                 {
-                    $subparser = $this->_arguments[$position]['subparsers']->getParser($arg);
-                    if(is_null($subparser)) throw new UndeclaredSubparserException("Unknown subparser '{$arg}'");
-                    array_shift($this->_raw);
-                    $this->_context += $subparser->parse($this->_raw);
-                    $this->_raw = $subparser->remainder();
+                    $subparsers = $this->_arguments[$position]['subparsers'];
+                    $this->_context += $subparsers->parse($args);
+                    $args = $subparsers->remainder();
                 }
                 elseif (isset($this->_arguments[$position]))
                 {
                     $argument = $this->_arguments[$position];
                     call_user_func($argument['action'],
                                    $argument,
-                                   array($arg) + array_slice($this->_raw, 0, $argument['nargs'] - 1));
-                    $this->_raw = array_slice($this->_raw, $argument['nargs']);
+                                   array_slice($args, 0, $argument['nargs'])
+                                   );
+                    $this->args = array_slice($args, $argument['nargs']);
                 }
                 else // Argument has not been specified
                 {
                     $remainder[] = $arg;
+                    array_shift($args);
                 }
                 $position++;
             }
@@ -345,6 +367,9 @@ class Subparsers
     protected $help;
     protected $prefix;
 
+    protected $action;
+    protected $remainder;
+
     protected $parsers = array();
 
     public function __construct($title = 'subcommands', $description = '', $help = '', $prefix = '')
@@ -353,6 +378,8 @@ class Subparsers
         $this->description = $description;
         $this->help = $help;
         $this->prefix = $prefix;
+
+        $this->action = function() { $this->printHelp();};
     }
 
     public function title()
@@ -365,14 +392,44 @@ class Subparsers
         return $this->description;
     }
 
+    public function getDescription()
+    {
+        return $this->description;
+    }
+
     public function addParser($name, $prog = null, $description = '', $action = 'help')
     {
         return $this->parsers[$name] = new Argparse($this->prefix . $prog, $description, $action);
     }
 
+    public function addSubParsers($name, $title = 'subcommands', $description = '', $help = '', $prefix = '')
+    {
+        return $this->parsers[$name] = new self($title, $description, $help, $prefix);
+    }
+
     public function getParser($name)
     {
         return (isset($this->parsers[$name]) ? $this->parsers[$name] : null);
+    }
+
+    public function parse($args)
+    {
+        $this->remainder = array();
+        if(empty($args) && is_callable($this->action)) call_user_func($this->action);
+
+        $arg = array_shift($args);
+        $subparser = $this->getParser($arg);
+        if(is_null($subparser)) throw new UndeclaredSubparserException("Unknown subparser '{$arg}'");
+
+        $context = $subparser->parse($args);
+        $this->remainder = $subparser->remainder();
+
+        return $context;
+    }
+
+    public function remainder()
+    {
+        return $this->remainder;
     }
 
     public function listParsers()
@@ -387,14 +444,34 @@ class Subparsers
         else return sprintf($format, implode($separator, $list));
     }
 
-    public function helpLines()
+    public function formatArgumentHelp($name, $help, $name_pad = "\t", $help_pad = "\t\t", $glue = "\n")
+    {
+        $help = $this->formatText($help, $help_pad, 75);
+        return "{$name_pad}{$name}$glue{$help}\n";
+    }
+
+    public function formatText($text, $pad = "", $wrap = 75)
+    {
+        return $pad . implode("\n".$pad, explode("\n", wordwrap($text, $wrap - strlen($pad))));
+    }
+
+    public function help()
     {
         $help = '';
         foreach($this->parsers as $name => $parser)
         {
-            $help .= "\t{$name}\n\t\t{$parser->getDescription()}\n";
+            $help .= $parser->formatArgumentHelp($name, $parser->getDescription());
         }
         return $help;
+    }
+
+    protected function printHelp()
+    {
+        $help = $this->formatText("USAGE: VM INSTANCE {{$this->title}}") ."\n";
+        if (!empty($this->description)) $help .= "\n". $this->formatText($this->description) ."\n\n";
+        $help .= $this->title .":\n". $this->help();
+        print $help ."\n";
+        exit (0);
     }
 }
 
