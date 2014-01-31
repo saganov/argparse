@@ -34,7 +34,7 @@ class Argparse
      */
 
     /**
-     * @ brief Create a new ArgumentParser object.
+     * @ brief Create a new Argument Parser object.
      *
      *  @param string $prog        name of the program (default: $argv[0])
      *  @param string $description text to display before the argument help (default: empty)
@@ -117,11 +117,14 @@ class Argparse
                          'type'     => 'string',
                          'choices'  => null,
                          'required' => null,
-                         'help'     => '');
+                         'help'     => '',
+                         'metavar'  => null,
+                         'dest'     => null);
 
         $options += $default;
         if(is_string($options['action'])) $options['action'] = array($this, $options['action']);
         if(!is_callable($options['action'])) throw new InvalidArgumentException("Invalid action: {$options['action'][1]}");
+        if(is_null($option['metavar'])) $option['metavar'] = ltrim($name, '-');
 
         $options['name'] = $name;
         if (strpos($name, '-') === 0) // Optional argument specified
@@ -145,7 +148,7 @@ class Argparse
             }
             $name = $options['name'] = ltrim($options['long'], '-');
             if(is_null($options['required'])) $options['required'] = false;
-            $options['usage'] = ($options['short'] ?: $options['long']) . str_repeat(' arg ', $options['nargs']);
+            $options['usage'] = ($options['short'] ?: $options['long']) . str_repeat(' '.strtoupper($option['metavar']).' ', $options['nargs']);
             if(!$options['required'])
             {
                 $options['usage'] = '['.$options['usage'].']';
@@ -160,7 +163,7 @@ class Argparse
         {
             $options['type'] = 'argument';
             if(is_null($options['required'])) $options['required'] = true;
-            $options['usage'] = $name . str_repeat(" $name ", $options['nargs']-1);
+            $options['usage'] = $options['metavar'] . str_repeat(" {$options['metavar']} ", $options['nargs']-1);
             if(!$options['required'])
             {
                 $options['usage'] = '['.$options['usage'].']';
