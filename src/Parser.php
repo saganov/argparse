@@ -47,12 +47,12 @@ abstract class Parser implements IParser
 
     public function __get($label)
     {
-        return (array_key_exists($label, $this->_arguments) ? $this->_arguments[$label]->value() : null);
+        return (array_key_exists($label, $this->_arguments) ? current($this->_arguments[$label]->value()) : null);
     }
 
     public function __isset($label)
     {
-        return (array_key_exists($label, $this->_arguments) ? $this->_arguments[$label]->isset() : false);
+        return (array_key_exists($label, $this->_arguments) ? $this->_arguments[$label]->_isset() : false);
     }
 
     public function description()
@@ -74,10 +74,10 @@ abstract class Parser implements IParser
      */
     public function addArgument(IArgument $argument)
     {
-        if(is_a('Option', $argument))
+        if(is_a($argument, 'Option'))
         {
-            $this->_arguments[$argument->long] = $argument;
-            if ($argument->short) $this->_arguments[$argument->short] = $argument;
+            $this->_arguments[$argument->key('long')] = $argument;
+            if ($argument->key('short')) $this->_arguments[$argument->key('short')] = $argument;
         }
         else
         {
@@ -92,10 +92,18 @@ abstract class Parser implements IParser
         $type = implode(',', func_get_args());
         $type = array_map('trim', explode(',', $type));
 
-        if(empty($type)) return $this->_arguments;
-        else return array_filter($this->_arguments,
-                                 function($arg) use ($type) {
-                                     return in_array(get_class($arg), $type);});
+        if(empty($type)) return array_unique($this->_arguments);
+        else return array_unique(
+            array_filter($this->_arguments,
+                         function($arg) use ($type) {
+                             return in_array(get_class($arg), $type);}));
+    }
+
+    protected function missed()
+    {
+        return array_unique(
+            array_filter($this->_arguments,
+                         function($arg) { return ($arg->isRequired() && !$arg->_isset()); }));
     }
 
     /** Helpers */
@@ -110,47 +118,6 @@ abstract class Parser implements IParser
     }
     /** End Helpers */
 
-    /**
-       @todo move this code to the ArgParser class
-    public function usage($format = '%s');
-    {
-        return sprintf($format,
-                       array_reduce(
-                           $this->arguments('Option'),
-                           function($str, $arg){ return $str .= $arg->usage() .' '; })
-                       . array_reduce(
-                           $this->arguments('Argument', 'Subparsers'),
-                           function($str, $arg){ return $str .= $arg->usage() .' '; }));
-    }
-    */
-
-    /**
-       @todo move this code to the ArgParser class
-    public function help();
-    {
-        $arguments = $this->array2string(
-            $this->arguments('Argument'),
-            function($str, $arg){ return $str .= $arg->help(); },
-            "ARGUMENTS:\n%s");
-
-        $options = $this->array2string(
-            $this->arguments('Option'),
-            function($str, $opt){ return $str .= $arg->help(); },
-            "OPTIONS:\n%s");
-
-        $subparsers = $this->array2string(
-            $this->arguments('Subparsers'),
-            function($str, $arg){ return $str .= $arg->help(); });
-
-        $help = $this->formatText($this->usage("USAGE: {$this->_title} %s")) ."\n";
-        if (!empty($this->_description)) $help .= "\n". $this->formatText($this->_description) ."\n\n";
-        if (!empty($arguments))          $help .= $arguments ."\n";
-        if (!empty($options))            $help .= $options   ."\n";
-        if (!empty($subparsers))         $help .= $subparsers."\n";
-
-        return $help;
-    }
-    */
 
     public function debug($property)
     {
@@ -173,8 +140,3 @@ abstract class Parser implements IParser
         exit (0);
     }
 }
-
-//class InvalidArgumentException extends \Exception {}
-class MissedOptionException extends \Exception {}
-class MissedArgumentException extends \Exception {}
-class MissedRequiredArgumentException extends \Exception {}

@@ -344,7 +344,7 @@ class Argparse
         {
             $value = $argument['default'];
         }
-        elseif(count($val) === 1)
+        elseif(count($value) === 1)
         {
             $value = $value[0];
         }
