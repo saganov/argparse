@@ -59,7 +59,12 @@ class Option extends Argument
     public function help($format = "\t%s\n%s\n")
     {
         $help = $this->formatText($this->help, "\t\t", 75);
-        $name = ($this->short ? $this->short .', ' : '') . $this->long;
+        $name = '';
+        if($this->short)
+        {
+            $name .= $this->short . str_repeat(" {$this->metavar} ", $this->nargs) .', ';
+        }
+        $name .= $this->long . str_repeat(" {$this->metavar} ", $this->nargs);
         return sprintf($format, $name, $help);
     }
 }

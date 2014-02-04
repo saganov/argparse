@@ -3,6 +3,7 @@
 require_once __DIR__.'/../src/ArgumentParser.php';
 require_once __DIR__.'/../src/Argument.php';
 require_once __DIR__.'/../src/Option.php';
+require_once __DIR__.'/../src/SubParsers.php';
 
 echo "====== Test Argument Parser help =====\n";
 $test = new ArgumentParser('Test', 'Test programm to test');
@@ -19,6 +20,10 @@ $test->addArgument(new Argument('baz', array('help'     => 'BAZ position argumen
 $test->addArgument(new Argument('foo', array('help'     => 'FOO position argument',
                                              'required' => false,
                                              'nargs'    =>  2)));
+$subparser = $test->addSubParsers(new SubParsers('Subparser'));
+$parserA = $subparser->addParser('A', new ArgumentParser('A'));
+$parserB = $subparser->addParser('B', new ArgumentParser('B'));
+$parserC = $subparser->addParser('C', new ArgumentParser('C'));
 
 $remainder = $test->parse();
 $value     = $test->value();

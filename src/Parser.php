@@ -55,6 +55,11 @@ abstract class Parser implements IParser
         return (array_key_exists($label, $this->_arguments) ? $this->_arguments[$label]->_isset() : false);
     }
 
+    public function __invoke($args)
+    {
+        if (is_callable($this->_action)) return call_user_func($this->_action, $args);
+    }
+
     public function description()
     {
         return $this->_description;
@@ -85,6 +90,12 @@ abstract class Parser implements IParser
         }
 
         return $this;
+    }
+
+    public function addSubParsers(SubParsers $subparsers)
+    {
+        $this->addArgument($subparsers);
+        return $subparsers;
     }
 
     protected function arguments($type = null)

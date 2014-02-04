@@ -12,10 +12,17 @@ require_once __DIR__.'/ArgumentParser.php';
 class SubParsers extends Parser implements IArgument
 {
     protected $parsers = array();
+    protected static $parser;
 
-    public function addParser($name, $title = null, $description = '', $action = 'help')
+    public function __toString()
     {
-        return $this->parsers[$name] = new ArgumentParser($title, $description, $action);
+        return $this->_title;
+    }
+
+    //public function addParser($name, $title = null, $description = '', $action = 'help')
+    public function addParser($name, IParser $parser)
+    {
+        return $this->parsers[$name] = $parser;
     }
 
     public function getParser($name)
@@ -23,66 +30,48 @@ class SubParsers extends Parser implements IArgument
         return (isset($this->parsers[$name]) ? $this->parsers[$name] : null);
     }
 
-    public function parse($args)
+    public function parse($args = null)
     {
-        $this->remainder = array();
-        if(empty($args) && is_callable($this->action)) call_user_func($this->action);
+        $remainder = array();
+        //if(empty($args) && is_callable($this->action)) call_user_func($this->action);
+        if(empty($args))
+        {
+            $parser = self::$parser;
+            return $parser($args);
+        }
 
         $arg = array_shift($args);
-        $subparser = $this->getParser($arg);
-        if(is_null($subparser)) throw new UndeclaredSubparserException("Unknown subparser '{$arg}'");
-
-        $context = $subparser->parse($args);
-        $this->remainder = $subparser->remainder();
-
-        return $context;
+        self::$parser = $this->getParser($arg);
+        if(is_null(self::$parser)) throw new UndeclaredSubparserException("Unknown subparser '{$arg}'");
+        return self::$parser->parse($args);
     }
 
-    public function remainder()
+    public function value()
     {
-        return $this->remainder;
+        return self::$parser->value();
     }
 
-    public function listParsers()
+    public function usage($format = '%s')
     {
-        return $this->parsers;
+        return sprintf($format, "{{$this->_title}}");
     }
 
-    public function listNames($separator = null, $format = '%s')
+    public function help()
     {
-        $list = array_keys($this->parsers);
-        if (is_null($separator)) return $list;
-        else return sprintf($format, implode($separator, $list));
+        $help = strtoupper($this->_title) .":\n";
+        if (!empty($this->_description)) $help .= "\n". $this->formatText($this->_description) ."\n\n";
+        foreach($this->parsers as $name => $parser)
+        {
+            $help .= $this->formatArgumentHelp($name, $parser->description());
+        }
+
+        return $help;
     }
 
     public function formatArgumentHelp($name, $help, $name_pad = "\t", $help_pad = "\t\t", $glue = "\n")
     {
         $help = $this->formatText($help, $help_pad, 75);
         return "{$name_pad}{$name}$glue{$help}\n";
-    }
-
-    public function formatText($text, $pad = "", $wrap = 75)
-    {
-        return $pad . implode("\n".$pad, explode("\n", wordwrap($text, $wrap - strlen($pad))));
-    }
-
-    public function help()
-    {
-        $help = '';
-        foreach($this->parsers as $name => $parser)
-        {
-            $help .= $parser->formatArgumentHelp($name, $parser->getDescription());
-        }
-        return $help;
-    }
-
-    protected function printHelp()
-    {
-        $help = $this->formatText("USAGE: VM INSTANCE {{$this->title}}") ."\n";
-        if (!empty($this->description)) $help .= "\n". $this->formatText($this->description) ."\n\n";
-        $help .= $this->title .":\n". $this->help();
-        print $help ."\n";
-        exit (0);
     }
 }
 

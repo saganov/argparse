@@ -65,6 +65,11 @@ class ArgumentParser extends Parser
                             array());
     }
 
+    public function description()
+    {
+        return $this->_description;
+    }
+
     public function usage($format = '%s')
     {
         return $this->formatText(
@@ -73,7 +78,7 @@ class ArgumentParser extends Parser
                         $this->arguments('Option'),
                         function($str, $arg){ return $str .= $arg->usage() .' '; })
                     . array_reduce(
-                        $this->arguments('Argument', 'Subparsers'),
+                        $this->arguments('Argument', 'SubParsers'),
                         function($str, $arg){ return $str .= $arg->usage() .' '; })));
     }
 
@@ -90,7 +95,7 @@ class ArgumentParser extends Parser
             "OPTIONS:\n%s");
 
         $subparsers = $this->array2string(
-            $this->arguments('Subparsers'),
+            $this->arguments('SubParsers'),
             function($str, $arg){ return $str .= $arg->help(); });
 
         $help = $this->formatText($this->usage("USAGE: {$this->_title} %s")) ."\n";
