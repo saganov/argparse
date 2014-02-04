@@ -14,7 +14,24 @@ interface IParser {
 }
 
 abstract class Parser {
- +addArgument( IArgument argument )
+ #_title : String
+ #_description : String
+ #_action : Callback
+ #_arguments : Array
+
+ +__construct( title:String, description:String, action:String | Callback ) : Parser
+ +__get( label:String ) : String
+ +__isset( label:String ) : Boolean
+ +__invoke( args:Array ) : Mixed
+ +description() : String
+ +key() : Int
+ +addArgument( argument:IArgument ) : Parser
+ +addSubParsers( subparsers:SubParsers ) : SubParsers
+
+ #arguments( type:String ) : Array
+ #missed() : Array
+ #array2string( data:Array, callback:Callback, wrapper:String ) : String
+ #formatText( text:String, pad:String, wrap:Int )
 }
 
 class Subparsers {

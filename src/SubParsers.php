@@ -1,13 +1,12 @@
 <?php
   /**
-   * Command line argument parser
+   * Subparsers of Command line argument parser
    *
    * @author Petr Saganov <saganoff@gmail.com>
    */
 
 require_once __DIR__.'/Parser.php';
 require_once __DIR__.'/IArgument.php';
-require_once __DIR__.'/ArgumentParser.php';
 
 class SubParsers extends Parser implements IArgument
 {
@@ -19,7 +18,6 @@ class SubParsers extends Parser implements IArgument
         return $this->_title;
     }
 
-    //public function addParser($name, $title = null, $description = '', $action = 'help')
     public function addParser($name, IParser $parser)
     {
         return $this->parsers[$name] = $parser;
