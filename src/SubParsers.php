@@ -11,14 +11,29 @@ require_once __DIR__.'/IArgument.php';
 class SubParsers extends Parser implements IArgument
 {
     protected $parsers = array();
-    protected static $parser;
+    protected $parser;
 
     public function __toString()
     {
         return $this->_title;
     }
 
-    public function addParser($name, IParser $parser)
+    public function isRequired()
+    {
+        return true;
+    }
+
+    public function _isset()
+    {
+        return isset($this->parser);
+    }
+
+    public function key()
+    {
+        return null;
+    }
+
+    public function addParser($name, Parser $parser)
     {
         return $this->parsers[$name] = $parser;
     }
@@ -31,22 +46,21 @@ class SubParsers extends Parser implements IArgument
     public function parse($args = null)
     {
         $remainder = array();
-        //if(empty($args) && is_callable($this->action)) call_user_func($this->action);
-        if(empty($args))
+        if(empty($args) && is_callable($this->action))
         {
-            $parser = self::$parser;
-            return $parser($args);
+            call_user_func($this->action);
+            return $args;
         }
 
         $arg = array_shift($args);
-        self::$parser = $this->getParser($arg);
-        if(is_null(self::$parser)) throw new UndeclaredSubparserException("Unknown subparser '{$arg}'");
-        return self::$parser->parse($args);
+        $this->parser = $this->getParser($arg);
+        if(is_null($this->parser)) throw new UndeclaredSubparserException("Unknown subparser '{$arg}'");
+        return $this->parser->parse($args);
     }
 
     public function value()
     {
-        return self::$parser->value();
+        return ($this->parser ? $this->parser->value() : array());
     }
 
     public function usage($format = '%s')
@@ -58,12 +72,8 @@ class SubParsers extends Parser implements IArgument
     {
         $help = strtoupper($this->_title) .":\n";
         if (!empty($this->_description)) $help .= "\n". $this->formatText($this->_description) ."\n\n";
-        foreach($this->parsers as $name => $parser)
-        {
-            $help .= $this->formatArgumentHelp($name, $parser->description());
-        }
-
-        return $help;
+        return $help . array_reduce($this->parsers,
+                                    function($help, $parser){return $help .= $parser->help();});
     }
 
     public function formatArgumentHelp($name, $help, $name_pad = "\t", $help_pad = "\t\t", $glue = "\n")

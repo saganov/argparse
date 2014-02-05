@@ -15,7 +15,7 @@ class ArgumentParser extends Parser
         parent::__construct($title, $description, $action);
 
         $this->addArgument(new Option('--help -h',
-                                      array('action'  => array($this, 'CommandHelp'),
+                                      array('action'  => array($this, 'commandHelp'),
                                             'nargs'   => 0,
                                             'default' => false,
                                             'help'    => 'show this help message and exit')));
@@ -65,11 +65,6 @@ class ArgumentParser extends Parser
                             array());
     }
 
-    public function description()
-    {
-        return $this->_description;
-    }
-
     public function usage($format = '%s')
     {
         return $this->formatText(
@@ -82,7 +77,17 @@ class ArgumentParser extends Parser
                         function($str, $arg){ return $str .= $arg->usage() .' '; })));
     }
 
-    public function help($print = false)
+    public function help($format = "\t%s\n%s\n")
+    {
+        $help = $this->formatText($this->_description, "\t\t", 75);
+        return sprintf($format, $this->_title, $help);
+    }
+
+    /**
+     * Internal commands
+     */
+
+    public function commandHelp()
     {
         $arguments = $this->array2string(
             $this->arguments('Argument'),
@@ -104,13 +109,7 @@ class ArgumentParser extends Parser
         if (!empty($options))            $help .= $options   ."\n";
         if (!empty($subparsers))         $help .= $subparsers."\n";
 
-        if($print) print $help;
-        return $help;
-    }
-
-    public function CommandHelp()
-    {
-        $this->help(true);
+        print $help;
         exit(0);
     }
 }

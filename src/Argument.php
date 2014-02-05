@@ -73,6 +73,11 @@ class Argument implements IArgument
         return isset($this->value);
     }
 
+    public function key()
+    {
+        return null;
+    }
+
     /** Helpers */
     public function formatText($text, $pad = "", $wrap = 75)
     {

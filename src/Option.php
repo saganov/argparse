@@ -35,9 +35,10 @@ class Option extends Argument
         $this->metavar = strtoupper($this->metavar);
     }
 
-    public function key($label)
+    public function key()
     {
-        if (in_array($label, array('short', 'long'))) return $this->{$label};
+        if($this->short) return array($this->short, $this->long);
+        else $this->long;
     }
 
     public function parse($args = NULL)

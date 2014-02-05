@@ -7,10 +7,17 @@ user-friendly command-line interfaces.
 Plant UML:
 @startuml
 interface IParser {
- +usage()
+ +usage( format:String ) : String
  +help()
- +parse()
- +value()
+ +parse( args:Array ) : Array
+ +value() : Array
+}
+
+interface IArgument {
+ +__toString() : String
+ +_isset() : Boolean
+ +isRequired() : Boolean
+ +key()
 }
 
 abstract class Parser {
@@ -23,28 +30,102 @@ abstract class Parser {
  +__get( label:String ) : String
  +__isset( label:String ) : Boolean
  +__invoke( args:Array ) : Mixed
+
  +description() : String
- +key() : Int
- +addArgument( argument:IArgument ) : Parser
- +addSubParsers( subparsers:SubParsers ) : SubParsers
+ +next() : Int
+ +addArgument( argument:IArgument ) : IArgument
 
  #arguments( type:String ) : Array
  #missed() : Array
+
  #array2string( data:Array, callback:Callback, wrapper:String ) : String
- #formatText( text:String, pad:String, wrap:Int )
+ #formatText( text:String, pad:String, wrap:Int ) : String
+
+ #commandStore( argument, value ) : void
+ +commandHelp()
 }
 
-class Subparsers {
- +addParser( Parser parser )
+class ArgumentParser {
+ +__construct( title:String, description:String, action:String | Callback ) : ArgumentParser
+
+ +usage( format:String ) : String
+ +help( print:Boolean ) : String
+ +parse( args:Array ) : Array
+ +value() : Array
+
+ +commandHelp()
+}
+
+class SubParsers {
+ #parsers : Array
+ #{static} parser : Parser
+
+ +__toString() : String
+ +_isset() : Boolean
+ +isRequired() : Boolean
+ +key()
+
+ +usage() : String
+ +help() : String
+ +parse( args:Array ) : Array
+ +value() : Array
+
+ +addParser( name:String, parser:Parser ) : Parser
+ +getParser( name:String ) : Parser
+
+ +formatArgumentHelp( name:String, help:String, name_pad:String, help_pad:String, glue:String ) : String
+}
+
+class Argument {
+ #name : String
+ #value : String
+ #action = 'store' : String|Callback
+ #nargs  = 1 : Int
+ #const
+ #default
+ #type     = 'string' : String
+ #choices
+ #required = true : Boolean
+ #help     = '' : String
+ #metavar
+ #dest
+
+ +__construct( name:String, options:Array ) : Argument
+ +__toString() : String
+ +_isset() : Boolean
+ +isRequired() : Boolean
+ +key()
+
+ +usage( format:String ) : String
+ +help( format:String ) : String
+ +parse( args:Array ) : Array
+ +value() : Array
+
+ +formatText( text:String, pad:String, wrap:Int ) : String
+
+ +store( value ) : void
+}
+
+class Option {
+ #required = false : Boolean
+ #short = false : String
+ #long : String
+
+ +__construct( name:String, options:Array ) : Argument
+ +key() : String | Arrray
+
+ +usage( format:String ) : String
+ +help( format:String ) : String
+ +parse( args:Array ) : Array
 }
 
 interface IParser <|-- interface IArgument
 interface IParser <|-- abstract class Parser
 interface IArgument <|-- Argument
 Argument <|-- Option
-interface IArgument <|-- Subparsers
-abstract class Parser <|-- Argparser
-abstract class Parser <|-- Subparsers
+interface IArgument <|-- SubParsers
+abstract class Parser <|-- ArgumentParser
+abstract class Parser <|-- SubParsers
 @enduml
 
 Direct link to the UML schema

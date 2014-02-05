@@ -40,7 +40,7 @@ abstract class Parser implements IParser
     {
         $this->_title = ($title ?: $_SERVER['argv'][0]);
         $this->_description = $description;
-        if (is_string($action)) $action = array($this, 'Command'. ucfirst($action));
+        if (is_string($action)) $action = array($this, 'command'. ucfirst($action));
         /** @todo action validation is needed */
         $this->_action = $action;
     }
@@ -65,7 +65,7 @@ abstract class Parser implements IParser
         return $this->_description;
     }
 
-    protected function key()
+    protected function next()
     {
         return count(array_filter(array_keys($this->_arguments), 'is_numeric'));
     }
@@ -79,32 +79,22 @@ abstract class Parser implements IParser
      */
     public function addArgument(IArgument $argument)
     {
-        if(is_a($argument, 'Option'))
-        {
-            $this->_arguments[$argument->key('long')] = $argument;
-            if ($argument->key('short')) $this->_arguments[$argument->key('short')] = $argument;
-        }
-        else
-        {
-            $this->_arguments[$this->key()] = $argument;
-        }
+        $key = (array)($argument->key() ?: $this->next());
+        array_walk($key,
+                   function($aliace) use($argument){
+                       $this->_arguments[$aliace] = $argument;});
 
-        return $this;
-    }
-
-    public function addSubParsers(SubParsers $subparsers)
-    {
-        $this->addArgument($subparsers);
-        return $subparsers;
+        return $argument;
     }
 
     protected function arguments($type = null)
     {
+        if(is_null($type)) return array_unique($this->_arguments);
+
         $type = implode(',', func_get_args());
         $type = array_map('trim', explode(',', $type));
 
-        if(empty($type)) return array_unique($this->_arguments);
-        else return array_unique(
+        return array_unique(
             array_filter($this->_arguments,
                          function($arg) use ($type) {
                              return in_array(get_class($arg), $type);}));
@@ -112,10 +102,11 @@ abstract class Parser implements IParser
 
     protected function missed()
     {
-        return array_unique(
-            array_filter($this->_arguments,
-                         function($arg) { return ($arg->isRequired() && !$arg->_isset()); }));
-    }
+        return array_filter(
+            $this->arguments(),
+            function($arg) {
+                return ($arg->isRequired() && !$arg->_isset()); });
+}
 
     /** Helpers */
     protected function array2string(array $data, $callback, $wrapper = '%s')
@@ -129,25 +120,21 @@ abstract class Parser implements IParser
     }
     /** End Helpers */
 
-
-    public function debug($property)
-    {
-        $propert = '_'.$property;
-        return (property_exists($this, $property) ? $this->{$property} : null);
-    }
-
     /**
      * Internal commands
      */
 
-    protected function CommandStore($argument, $value)
+    protected function commandStore($argument, $value)
     {
         /** No action is needed, because value already stored during parsing */
     }
 
-    public function CommandHelp()
+    public function commandHelp()
     {
-        print $this->help();
-        exit (0);
+        $help = strtoupper($this->_title) .":\n";
+        if (!empty($this->_description)) $help .= "\n". $this->formatText($this->_description) ."\n\n";
+
+        print $help;
+        exit(0);
     }
 }
