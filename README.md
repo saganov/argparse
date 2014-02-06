@@ -11,28 +11,32 @@ interface IParser {
  +help()
  +parse( args:Array ) : Array
  +value() : Array
+ +key()
 }
 
 interface IArgument {
  +__toString() : String
  +_isset() : Boolean
  +isRequired() : Boolean
- +key()
 }
 
 abstract class Parser {
- #_title : String
+ #_name : String
  #_description : String
  #_action : Callback
  #_arguments : Array
 
- +__construct( title:String, description:String, action:String | Callback ) : Parser
+ +__construct( name:String, options:Array ) : Parser
  +__get( label:String ) : String
  +__isset( label:String ) : Boolean
  +__invoke( args:Array ) : Mixed
 
  +description() : String
  +next() : Int
+
+ +help() : String
+ +key() : String
+
  +addArgument( argument:IArgument ) : IArgument
 
  #arguments( type:String ) : Array
@@ -46,10 +50,9 @@ abstract class Parser {
 }
 
 class ArgumentParser {
- +__construct( title:String, description:String, action:String | Callback ) : ArgumentParser
+ +__construct( name:String, options:Array ) : ArgumentParser
 
  +usage( format:String ) : String
- +help( print:Boolean ) : String
  +parse( args:Array ) : Array
  +value() : Array
 
@@ -58,7 +61,7 @@ class ArgumentParser {
 
 class SubParsers {
  #parsers : Array
- #{static} parser : Parser
+ #parser : Parser
 
  +__toString() : String
  +_isset() : Boolean
@@ -70,7 +73,7 @@ class SubParsers {
  +parse( args:Array ) : Array
  +value() : Array
 
- +addParser( name:String, parser:Parser ) : Parser
+ +addParser( parser:Parser ) : Parser
  +getParser( name:String ) : Parser
 
  +formatArgumentHelp( name:String, help:String, name_pad:String, help_pad:String, glue:String ) : String

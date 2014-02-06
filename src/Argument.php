@@ -97,7 +97,8 @@ class Argument implements IArgument
 
     public function help($format = "\t%s\n%s\n")
     {
-        $help = $this->formatText($this->help, "\t\t", 75);
+        $pad = str_repeat("\t", strlen($format) - strlen(ltrim($format)) + 1);
+        $help = $this->formatText($this->help, $pad);
         return sprintf($format, $this->name, $help);
     }
 

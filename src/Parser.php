@@ -9,9 +9,9 @@ require_once __DIR__."/IParser.php";
 
 abstract class Parser implements IParser
 {
-    protected $_title;
+    protected $_name;
     protected $_description;
-    protected $_action;
+    protected $_action = 'help';
 
     protected $_arguments  = array();
 
@@ -32,17 +32,23 @@ abstract class Parser implements IParser
     /**
      * @ brief Create a new Parser object.
      *
-     *  @param string $title       name of the program (default: $argv[0])
+     *  @param string $name        name of the program (default: $argv[0])
      *  @param string $description text to display before the argument help (default: empty)
      *  @param string $action      action that invoked if no arguments are given (default: help)
      */
-    public function __construct($title = null, $description = '', $action = 'help')
+    public function __construct($name = null, array $options = array())
     {
-        $this->_title = ($title ?: $_SERVER['argv'][0]);
-        $this->_description = $description;
-        if (is_string($action)) $action = array($this, 'command'. ucfirst($action));
+        foreach($options as $property => $value)
+        {
+            $property = '_'.$property;
+            if(property_exists($this, $property))
+            {
+                $this->{$property} = $value;
+            }
+        }
+        $this->_name = ($name ?: $_SERVER['argv'][0]);
+        if (is_string($this->_action)) $this->_action = array($this, 'command'. ucfirst($this->_action));
         /** @todo action validation is needed */
-        $this->_action = $action;
     }
 
     public function __get($label)
@@ -63,6 +69,11 @@ abstract class Parser implements IParser
     public function description()
     {
         return $this->_description;
+    }
+
+    public function key()
+    {
+        return $this->_name;
     }
 
     protected function next()
@@ -106,7 +117,14 @@ abstract class Parser implements IParser
             $this->arguments(),
             function($arg) {
                 return ($arg->isRequired() && !$arg->_isset()); });
-}
+    }
+
+    public function help($format = "\t%s\n%s\n")
+    {
+        $pad = str_repeat("\t", strlen($format) - strlen(ltrim($format)) + 1);
+        $help = $this->formatText($this->_description, $pad);
+        return sprintf($format, $this->_name, $help);
+    }
 
     /** Helpers */
     protected function array2string(array $data, $callback, $wrapper = '%s')
@@ -131,10 +149,7 @@ abstract class Parser implements IParser
 
     public function commandHelp()
     {
-        $help = strtoupper($this->_title) .":\n";
-        if (!empty($this->_description)) $help .= "\n". $this->formatText($this->_description) ."\n\n";
-
-        print $help;
+        print $this->help();
         exit(0);
     }
 }

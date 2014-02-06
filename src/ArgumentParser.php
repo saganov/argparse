@@ -10,9 +10,9 @@ require_once __DIR__."/Option.php";
 
 class ArgumentParser extends Parser
 {
-    public function __construct($title = null, $description = '', $action = 'help')
+    public function __construct($name = null, array $options = array())
     {
-        parent::__construct($title, $description, $action);
+        parent::__construct($name, $options);
 
         $this->addArgument(new Option('--help -h',
                                       array('action'  => array($this, 'commandHelp'),
@@ -25,7 +25,6 @@ class ArgumentParser extends Parser
     {
         if(is_null($args)) $args = array_slice($_SERVER['argv'], 1);
         $args = (array)$args;
-
         if(empty($args) && is_callable($this->_action)) call_user_func($this->_action);
 
         $position = 0;
@@ -77,12 +76,6 @@ class ArgumentParser extends Parser
                         function($str, $arg){ return $str .= $arg->usage() .' '; })));
     }
 
-    public function help($format = "\t%s\n%s\n")
-    {
-        $help = $this->formatText($this->_description, "\t\t", 75);
-        return sprintf($format, $this->_title, $help);
-    }
-
     /**
      * Internal commands
      */
@@ -103,7 +96,7 @@ class ArgumentParser extends Parser
             $this->arguments('SubParsers'),
             function($str, $arg){ return $str .= $arg->help(); });
 
-        $help = $this->formatText($this->usage("USAGE: {$this->_title} %s")) ."\n";
+        $help = $this->formatText($this->usage("USAGE: {$this->_name} %s")) ."\n";
         if (!empty($this->_description)) $help .= "\n". $this->formatText($this->_description) ."\n\n";
         if (!empty($arguments))          $help .= $arguments ."\n";
         if (!empty($options))            $help .= $options   ."\n";

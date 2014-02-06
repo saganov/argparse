@@ -6,7 +6,7 @@ require_once __DIR__.'/../src/Option.php';
 require_once __DIR__.'/../src/SubParsers.php';
 
 echo "====== Test Argument Parser help =====\n";
-$main = new ArgumentParser('Test', 'Test programm to test');
+$main = new ArgumentParser('Test', array('description' => 'Test programm to test'));
 
 $main->addArgument(new Option('--hhh -hh', array('help'     => 'HHH optional argument')));
 $main->addArgument(new Option('--zzz -z', array('help'     => 'ZZZ optional argument',
@@ -20,10 +20,14 @@ $main->addArgument(new Argument('baz', array('help'     => 'BAZ position argumen
 $main->addArgument(new Argument('foo', array('help'     => 'FOO position argument',
                                              'required' => false,
                                              'nargs'    =>  2)));
-$subparsers = $main->addArgument(new SubParsers('Subcommands', 'To see details type COMMAND --help'));
-$parserA = $subparsers->addParser('A', new ArgumentParser('A', 'subcommand A'));
-$parserB = $subparsers->addParser('B', new ArgumentParser('B', 'subcommand B'));
-$parserC = $subparsers->addParser('C', new ArgumentParser('C', 'subcommand C'));
+$commands = $main->addArgument(new SubParsers('Commands', array('description' => 'To see details type COMMAND --help')));
+$commandA = $commands->addParser(new ArgumentParser('A', array('description' => 'command A')));
+$commandB = $commands->addParser(new ArgumentParser('B', array('description' => 'command B')));
+$commandC = $commands->addParser(new ArgumentParser('C', array('description' => 'command C')));
+$subcommands = $commands->addParser(new SubParsers('Subcommand', array('description' => 'To see details type SUBCOMMAND --help')));
+$subcommandA = $subcommands->addParser(new ArgumentParser('DDD-A', array('description' => 'subcommand A')));
+$subcommandB = $subcommands->addParser(new ArgumentParser('DDD-B', array('description' => 'subcommand B')));
+$subcommandC = $subcommands->addParser(new ArgumentParser('DDD-C', array('description' => 'subcommand C')));
 
 $remainder = $main->parse();
 $value     = $main->value();

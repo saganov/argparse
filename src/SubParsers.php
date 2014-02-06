@@ -15,7 +15,7 @@ class SubParsers extends Parser implements IArgument
 
     public function __toString()
     {
-        return $this->_title;
+        return $this->_name;
     }
 
     public function isRequired()
@@ -33,9 +33,9 @@ class SubParsers extends Parser implements IArgument
         return null;
     }
 
-    public function addParser($name, Parser $parser)
+    public function addParser(Parser $parser)
     {
-        return $this->parsers[$name] = $parser;
+        return $this->parsers[$parser->key()] = $parser;
     }
 
     public function getParser($name)
@@ -65,21 +65,15 @@ class SubParsers extends Parser implements IArgument
 
     public function usage($format = '%s')
     {
-        return sprintf($format, "{{$this->_title}}");
+        return sprintf($format, "{{$this->_name}}");
     }
 
-    public function help()
+    public function help($format = "%s\n%s\n")
     {
-        $help = strtoupper($this->_title) .":\n";
-        if (!empty($this->_description)) $help .= "\n". $this->formatText($this->_description) ."\n\n";
-        return $help . array_reduce($this->parsers,
-                                    function($help, $parser){return $help .= $parser->help();});
-    }
-
-    public function formatArgumentHelp($name, $help, $name_pad = "\t", $help_pad = "\t\t", $glue = "\n")
-    {
-        $help = $this->formatText($help, $help_pad, 75);
-        return "{$name_pad}{$name}$glue{$help}\n";
+        return parent::help($format)
+            . array_reduce($this->parsers,
+                           function($help, $parser) use($format) {
+                               return $help .= $parser->help("\t".$format);});
     }
 }
 
