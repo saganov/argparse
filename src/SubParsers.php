@@ -35,7 +35,7 @@ class SubParsers extends Parser implements IArgument
 
     public function addParser(Parser $parser)
     {
-        return $this->parsers[$parser->key()] = $parser;
+        return $this->parsers[$parser->_name()] = $parser;
     }
 
     public function getParser($name)
@@ -46,9 +46,9 @@ class SubParsers extends Parser implements IArgument
     public function parse($args = null)
     {
         $remainder = array();
-        if(empty($args) && is_callable($this->action))
+        if(empty($args) && is_callable($this->_action))
         {
-            call_user_func($this->action);
+            call_user_func($this->_action);
             return $args;
         }
 
