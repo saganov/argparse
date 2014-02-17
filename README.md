@@ -29,13 +29,13 @@ abstract class Parser {
  +__construct( name:String, options:Array ) : Parser
  +__get( label:String ) : String
  +__isset( label:String ) : Boolean
+ +__call( name:String, arguments:Array ) : IArgument | Mixed
  +__invoke( args:Array ) : Mixed
 
- +description() : String
+ +key() : String
  +next() : Int
 
  +help() : String
- +key() : String
 
  +addArgument( argument:IArgument ) : IArgument
 
@@ -96,6 +96,7 @@ class Argument {
  +__construct( name:String, options:Array ) : Argument
  +__toString() : String
  +_isset() : Boolean
+ +__call( name:String, arguments:Array ) : IArgument | Mixed
  +isRequired() : Boolean
  +key()
 

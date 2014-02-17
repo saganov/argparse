@@ -58,6 +58,28 @@ class Argument implements IArgument
         }
     }
 
+    public function __call($name, $arguments)
+    {
+        $name = ltrim($name, '_');
+        if(!property_exists($this, $name))
+        {
+            throw new ArgumentException('Unknown method/property: '. $name);
+        }
+        elseif(empty($arguments))
+        {
+            return $this->{$name};
+        }
+        elseif(count($arguments) === 1)
+        {
+            $this->{$name} = $arguments[0];
+        }
+        else
+        {
+            throw new ArgumentException('To many arguments');
+        }
+        return $this;
+    }
+
     public function __toString()
     {
         return $this->name;
@@ -152,4 +174,5 @@ class Argument implements IArgument
     }
 }
 
+class ArgumentException extends \Exception{}
 class InvalidActionException extends \Exception {}

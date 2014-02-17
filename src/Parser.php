@@ -61,14 +61,30 @@ abstract class Parser implements IParser
         return (array_key_exists($label, $this->_arguments) ? $this->_arguments[$label]->_isset() : false);
     }
 
+    public function __call($name, $arguments)
+    {
+        if(!property_exists($this, $name))
+        {
+            throw new ParserException('Unknown method/property: '. $name);
+        }
+        elseif(empty($arguments))
+        {
+            return $this->{$name};
+        }
+        elseif(count($arguments) === 1)
+        {
+            $this->{$name} = $arguments[0];
+        }
+        else
+        {
+            throw new ParserException('To many arguments');
+        }
+        return $this;
+    }
+
     public function __invoke($args)
     {
         if (is_callable($this->_action)) return call_user_func($this->_action, $args);
-    }
-
-    public function description()
-    {
-        return $this->_description;
     }
 
     public function key()
@@ -153,3 +169,5 @@ abstract class Parser implements IParser
         exit(0);
     }
 }
+
+class ParserException extends \Exception{}
