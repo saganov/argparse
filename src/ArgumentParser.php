@@ -13,55 +13,51 @@ class ArgumentParser extends Parser
     public function __construct($name = null, array $options = array())
     {
         parent::__construct($name, $options);
-
-        $this->addArgument(new Option('--help -h',
-                                      array('action'  => array($this, 'commandHelp'),
-                                            'nargs'   => 0,
-                                            'default' => false,
-                                            'help'    => 'show this help message and exit')));
+        $this->add((new Option('--help -h'))
+                   ->_action(array($this, 'commandHelp'))
+                   ->_nargs(0)
+                   ->_help('show this help message and exit'));
     }
 
     public function parse($args = null)
     {
         if(is_null($args)) $args = array_slice($_SERVER['argv'], 1);
         $args = (array)$args;
-        if(empty($args) && is_callable($this->_action)) call_user_func($this->_action);
+
+        if(empty($args)) $this($args);
 
         $position = 0;
-        $remainder = array();
         while (count($args))
         {
             $arg = $args[0];
-            if (strpos($arg, '-') === 0 && isset($this->_arguments[$arg])) // Optional Argument
+            if (strpos($arg, '-') === 0 && isset($this->arguments[$arg])) // Optional Argument
             {
-                $args = $this->_arguments[$arg]->parse($args);
+                $args = $this->arguments[$arg]->parse($args);
             }
-            elseif (isset($this->_arguments[$position]))                   // Positional Argument
+            elseif (isset($this->arguments[$position]))                   // Positional Argument
             {
-                $args = $this->_arguments[$position]->parse($args);
+                $args = $this->arguments[$position]->parse($args);
             }
             else                                               // Argument has not been specified
             {
-                $remainder[] = $arg;
+                $this->remainder[] = $arg;
                 array_shift($args);
             }
 
             if (strpos($arg, '-') !== 0) $position++;
         }
 
-        $missed = $this->missed();
-        if(count($missed))
-        {
-            throw new MissedArgumentException('Missed required argument(s):'. implode(', ', $missed));
-        }
-        return $remainder;
+        return $this->value();
     }
 
     public function value()
     {
-        return array_reduce($this->_arguments,
-                            function($values, $arg){return $values += $arg->value();},
-                            array());
+        $values = array();
+        foreach($this->arguments as $arg)
+        {
+            $values += $arg->value();
+        }
+        return $values;
     }
 
     public function usage($format = '%s')
@@ -96,8 +92,8 @@ class ArgumentParser extends Parser
             $this->arguments('SubParsers'),
             function($str, $arg){ return $str .= $arg->help(); });
 
-        $help = $this->formatText($this->usage("USAGE: {$this->_name} %s")) ."\n";
-        if (!empty($this->_description)) $help .= "\n". $this->formatText($this->_description) ."\n\n";
+        $help = $this->formatText($this->usage("USAGE: {$this->name} %s")) ."\n";
+        if (!empty($this->description)) $help .= "\n". $this->formatText($this->description) ."\n\n";
         if (!empty($arguments))          $help .= $arguments ."\n";
         if (!empty($options))            $help .= $options   ."\n";
         if (!empty($subparsers))         $help .= $subparsers."\n";

@@ -15,17 +15,7 @@ class SubParsers extends Parser implements IArgument
 
     public function __toString()
     {
-        return $this->_name;
-    }
-
-    public function isRequired()
-    {
-        return true;
-    }
-
-    public function _isset()
-    {
-        return isset($this->parser);
+        return $this->name;
     }
 
     public function key()
@@ -35,7 +25,8 @@ class SubParsers extends Parser implements IArgument
 
     public function addParser(Parser $parser)
     {
-        return $this->parsers[$parser->_name()] = $parser;
+        $this->parsers[$parser->_name()] = $parser;
+        return $this;
     }
 
     public function getParser($name)
@@ -46,9 +37,9 @@ class SubParsers extends Parser implements IArgument
     public function parse($args = null)
     {
         $remainder = array();
-        if(empty($args) && is_callable($this->_action))
+        if(empty($args))
         {
-            call_user_func($this->_action);
+            $this->action();
             return $args;
         }
 

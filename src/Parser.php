@@ -9,11 +9,12 @@ require_once __DIR__."/IParser.php";
 
 abstract class Parser implements IParser
 {
-    protected $_name;
-    protected $_description;
-    protected $_action = 'help';
+    protected $name;
+    protected $description;
+    protected $action = 'help';
+    protected $remainder = array();
 
-    protected $_arguments  = array();
+    protected $arguments  = array();
 
     /*
       prog - The name of the program (default: sys.argv[0])
@@ -38,38 +39,39 @@ abstract class Parser implements IParser
      */
     public function __construct($name = null, array $options = array())
     {
-        foreach($options as $property => $value)
-        {
-            $property = '_'.$property;
-            if(property_exists($this, $property))
-            {
-                $this->{$property} = $value;
-            }
-        }
-        $this->_name = ($name ?: $_SERVER['argv'][0]);
-        if (is_string($this->_action)) $this->_action = array($this, 'command'. ucfirst($this->_action));
-        /** @todo action validation is needed */
+        $this->name = ($name ?: $_SERVER['argv'][0]);
+        array_walk($options, function($value, $property){
+                $this->__call($property, array($value));});
     }
 
     public function __get($label)
     {
-        return (array_key_exists($label, $this->_arguments) ? current($this->_arguments[$label]->value()) : null);
+        return (array_key_exists($label, $this->arguments) ? current($this->arguments[$label]->value()) : null);
     }
 
     public function __isset($label)
     {
-        return (array_key_exists($label, $this->_arguments) ? $this->_arguments[$label]->_isset() : false);
+        return (array_key_exists($label, $this->arguments) ? $this->arguments[$label]->isset() : false);
     }
 
     public function __call($name, $arguments)
     {
+        $name = strtolower(ltrim($name, '_'));
         if(!property_exists($this, $name))
         {
             throw new ParserException('Unknown method/property: '. $name);
         }
+        elseif(empty($arguments) && method_exists($this, 'get'. ucfirst($name)))
+        {
+            return call_user_func(array($this, 'get'. ucfirst($name)));
+        }
         elseif(empty($arguments))
         {
             return $this->{$name};
+        }
+        elseif(method_exists($this, 'set'. ucfirst($name)))
+        {
+            call_user_func_array(array($this, 'set'. ucfirst($name)), $arguments);
         }
         elseif(count($arguments) === 1)
         {
@@ -79,22 +81,34 @@ abstract class Parser implements IParser
         {
             throw new ParserException('To many arguments');
         }
+
         return $this;
+    }
+
+    protected function setAction($action)
+    {
+        if (is_string($action)) $action = array($this, 'command'. ucfirst($action));
+        $this->action = $action;
     }
 
     public function __invoke($args)
     {
-        if (is_callable($this->_action)) return call_user_func($this->_action, $args);
+        if (is_string($this->action)) $this->setAction($this->action);
+        if (is_callable($this->action))
+        {
+            call_user_func($this->action, (object)$this->value());
+            exit (0);
+        }
     }
 
     public function key()
     {
-        return $this->_name;
+        return $this->name;
     }
 
     protected function next()
     {
-        return count(array_filter(array_keys($this->_arguments), 'is_numeric'));
+        return count(array_filter(array_keys($this->arguments), 'is_numeric'));
     }
 
     /*
@@ -104,42 +118,34 @@ abstract class Parser implements IParser
      *                             or optional argumant or subparsers object.
      *
      */
-    public function addArgument(IArgument $argument)
+    public function add(IArgument $argument)
     {
-        $key = (array)($argument->key() ?: $this->next());
+        $key = (array)($argument->key() ?: array($this->next(), $argument->_name()));
         array_walk($key,
                    function($aliace) use($argument){
-                       $this->_arguments[$aliace] = $argument;});
+                       $this->arguments[$aliace] = $argument;});
 
-        return $argument;
+        return $this;
     }
 
     protected function arguments($type = null)
     {
-        if(is_null($type)) return array_unique($this->_arguments);
+        if(is_null($type)) return array_unique($this->arguments);
 
         $type = implode(',', func_get_args());
         $type = array_map('trim', explode(',', $type));
 
         return array_unique(
-            array_filter($this->_arguments,
+            array_filter($this->arguments,
                          function($arg) use ($type) {
                              return in_array(get_class($arg), $type);}));
-    }
-
-    protected function missed()
-    {
-        return array_filter(
-            $this->arguments(),
-            function($arg) {
-                return ($arg->isRequired() && !$arg->_isset()); });
     }
 
     public function help($format = "\t%s\n%s\n")
     {
         $pad = str_repeat("\t", strlen($format) - strlen(ltrim($format)) + 1);
-        $help = $this->formatText($this->_description, $pad);
-        return sprintf($format, $this->_name, $help);
+        $help = $this->formatText($this->description, $pad);
+        return sprintf($format, $this->name, $help);
     }
 
     /** Helpers */

@@ -5,6 +5,7 @@ The PHP port of the Python argparse module that makes it easy to write
 user-friendly command-line interfaces.
 
 Plant UML:
+```uml
 @startuml
 interface IParser {
  +usage( format:String ) : String
@@ -16,15 +17,15 @@ interface IParser {
 
 interface IArgument {
  +__toString() : String
- +_isset() : Boolean
- +isRequired() : Boolean
 }
 
 abstract class Parser {
- #_name : String
- #_description : String
- #_action : Callback
- #_arguments : Array
+ #name : String
+ #description : String
+ #action : Callback
+ #remainder : Array
+
+ #arguments : Array
 
  +__construct( name:String, options:Array ) : Parser
  +__get( label:String ) : String
@@ -40,7 +41,6 @@ abstract class Parser {
  +addArgument( argument:IArgument ) : IArgument
 
  #arguments( type:String ) : Array
- #missed() : Array
 
  #array2string( data:Array, callback:Callback, wrapper:String ) : String
  #formatText( text:String, pad:String, wrap:Int ) : String
@@ -64,8 +64,6 @@ class SubParsers {
  #parser : Parser
 
  +__toString() : String
- +_isset() : Boolean
- +isRequired() : Boolean
  +key()
 
  +usage() : String
@@ -95,9 +93,7 @@ class Argument {
 
  +__construct( name:String, options:Array ) : Argument
  +__toString() : String
- +_isset() : Boolean
  +__call( name:String, arguments:Array ) : IArgument | Mixed
- +isRequired() : Boolean
  +key()
 
  +usage( format:String ) : String
@@ -131,6 +127,7 @@ interface IArgument <|-- SubParsers
 abstract class Parser <|-- ArgumentParser
 abstract class Parser <|-- SubParsers
 @enduml
+```
 
 Direct link to the UML schema
-http://www.plantuml.com:80/plantuml/png/VP113i8W44Ntd6AM6DCRk77PbIQUO4gnaY2I0TnKxwvbWgsnk7iP_dyC61SrdL5fQ8z8GHEC0hOfuA3bvaqNRNq6FvrckgDD4ps5m2v4GXL1MGm15WRi-pqDwQfTbD0M12oGwzmwfIxBAPGcUsJnyIbNpC--kqVJm69Sxgf5LtSMAmAEVtJVuuEFvkRgjVbHbKygSaxz2ysg5m00
+http://www.plantuml.com:80/plantuml/png/jLR1Rjim3BtxAmZa41TD3zlHs0xjBijXs83i7Z2suXYn9K-IimRD_dsKPCjIutHhi_LGADIJ-4W-qgguPdABEOFbDvIAINXAuBPJMB8Kja8sgBELbXKluGOoS4j2x5ZTfZUqQCsf552MAhkN4eyMPrUqUy2wOsbesRCZdVkL9DNe-LwMNSEujhxNQosScpJmI0TmexJ4N4DUer8mqfrnR5X0RbOmbSkgrPNWePdEEiidhEiDvdkoITPWnGkwQA1eW3qV5HY9LouuCUXodOBnsETb0S9w2iDttEoXaX6ynWsh9_EuNbTAJK8UXAWPSkUP23zpwZa6RiT4dk1BzSWAvu0VnFwyH0umL2JanDcZjfObruclzOWW4nR5u2lrLBBHVyGcIcaA-jYoCD0WxRHuhrpjeK2DZku2yhvWsL2v1VoKsBPCJYLrvdJxtOG1clxxfBLO-BMv85lsN7rairmq3V9YfOLaOsWBi4gss8EeJ69xu6VN2AHF9yiXwA2RNgES-7ZoLxtukXQyJ7tLRPnRPRkgxTV-gjuowljYjmvjxkbFp8wh8Y3zEGufE59Pd--e-wZt1bIGzX1389VO8Uys9t6H35t_m-oiGncPtSXG4jc9Cfq9P79oEPMTpwoFC5T6aNE_Tmg663U90mAzwvlMo9WKPqVX5hlQh4pRWVcpTvahvg6ZV2Ugd2ax4dzqbMG50KcpB1n5CnFjS4bql64Q3oZTyDN96rN_Wg2k6eBFrFZ73zi_xROhfj6jScFesV3nMlhgld5FSTMsMAkuR6edf0vsVDbgGU653jzOjVWRGfadL1_-Vqvv_9Befy27qzqTJ3mmBa4ddnQJBnGBzzV5PbUDoyV6-NhXBHDTtfDu0JdUzni0

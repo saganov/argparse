@@ -9,7 +9,7 @@ class Argument implements IArgument
     protected $action   = 'store';
     protected $nargs    = 1;
     protected $const    = null;
-    protected $default  = null;
+    protected $default;
     protected $type     = 'string';
     protected $choices  = null;
     protected $required = true;
@@ -43,14 +43,9 @@ class Argument implements IArgument
      */
     public function __construct($name, array $options = array())
     {
-        foreach($options as $property => $value)
-        {
-            if(property_exists($this, $property))
-            {
-                $this->{$property} = $value;
-            }
-        }
         $this->name = $name;
+        array_walk($options, function($value, $property){
+                $this->__call($property, array($value));});
 
         if(is_null($this->metavar))
         {
@@ -83,16 +78,6 @@ class Argument implements IArgument
     public function __toString()
     {
         return $this->name;
-    }
-
-    public function isRequired()
-    {
-        return (bool)$this->required;
-    }
-
-    public function _isset()
-    {
-        return isset($this->value);
     }
 
     public function key()
@@ -145,12 +130,22 @@ class Argument implements IArgument
 
     public function value()
     {
-        if(!isset($this->value))
+        if(isset($this->value))
         {
-            $this->value = $this->default;
+            return array($this->name => $this->value);
         }
-
-        return array($this->name => $this->value);
+        elseif(isset($this->default))
+        {
+            return array($this->name => $this->default);
+        }
+        elseif($this->required)
+        {
+            throw new MissedArgumentException("Argument '{$this->name}' is required");
+        }
+        else
+        {
+            return array();
+        }
     }
 
     /**
@@ -164,7 +159,7 @@ class Argument implements IArgument
         }
         elseif(count($value) === 0)
         {
-            $value = $this->default;
+            $value = $this->const;
         }
         elseif(count($value) === 1)
         {
