@@ -28,11 +28,9 @@ $main = (new ArgumentParser('Test'))->_description('Test programm to test')
 
                       ->addParser((new ArgumentParser('DDD-C'))->_description('subcommand C'))));
 
-$value     = $main->parse();
-$remainder = $main->_remainder();
+echo "VALUE: ";
+var_dump($main->parse());
 
 echo "REMAINDER: ";
-var_dump($remainder);
+var_dump($main->_remainder());
 
-echo "VALUE: ";
-var_dump($value);
