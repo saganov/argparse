@@ -119,14 +119,14 @@ class Option {
  +parse( args:Array ) : Array
 }
 
-interface IParser <|-- interface IArgument
-interface IParser <|-- abstract class Parser
-interface IArgument <|-- Argument
+IParser <|-- IArgument
+IParser <|-- Parser
+IArgument <|-- Argument
 Argument <|-- Option
-interface IArgument <|-- SubParsers
-abstract class Parser <|-- ArgumentParser
-abstract class Parser <|-- SubParsers
+IArgument <|-- SubParsers
+Parser <|-- ArgumentParser
+Parser <|-- SubParsers
 @enduml
 ```
 
-Direct link to the UML schema: http://goo.gl/Ifa6bu
+Direct link to the UML schema: https://goo.gl/5Ehc3q
