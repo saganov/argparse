@@ -51,6 +51,10 @@ class Argument implements IArgument
         {
             $this->metavar = $this->name;
         }
+
+        if(is_null($this->dest)){
+          $this->dest = $this->name;
+        }
     }
 
     public function __call($name, $arguments)
@@ -132,11 +136,11 @@ class Argument implements IArgument
     {
         if(isset($this->value))
         {
-            return array($this->name => $this->value);
+            return array($this->dest => $this->value);
         }
         elseif(isset($this->default))
         {
-            return array($this->name => $this->default);
+            return array($this->dest => $this->default);
         }
         elseif($this->required)
         {

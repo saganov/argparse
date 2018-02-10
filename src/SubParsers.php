@@ -56,7 +56,7 @@ class SubParsers extends Parser implements IArgument
 
     public function usage($format = '%s')
     {
-        return sprintf($format, "{{$this->_name}}");
+        return sprintf($format, "{{$this}}");
     }
 
     public function help($format = "%s\n%s\n")

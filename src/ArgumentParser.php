@@ -29,6 +29,7 @@ class ArgumentParser extends Parser
         $position = 0;
         while (count($args))
         {
+
             $arg = $args[0];
             if (strpos($arg, '-') === 0 && isset($this->arguments[$arg])) // Optional Argument
             {
@@ -37,17 +38,16 @@ class ArgumentParser extends Parser
             elseif (isset($this->arguments[$position]))                   // Positional Argument
             {
                 $args = $this->arguments[$position]->parse($args);
+                $position++;
             }
             else                                               // Argument has not been specified
             {
-                $this->remainder[] = $arg;
-                array_shift($args);
+              //return $args;
+              break;
             }
-
-            if (strpos($arg, '-') !== 0) $position++;
         }
 
-        return $this->value();
+        return $args;
     }
 
     public function value()

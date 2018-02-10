@@ -12,7 +12,7 @@ abstract class Parser implements IParser
     protected $name;
     protected $description;
     protected $action = 'help';
-    protected $remainder = array();
+    protected $values = array();
 
     protected $arguments  = array();
 
@@ -46,12 +46,13 @@ abstract class Parser implements IParser
 
     public function __get($label)
     {
-        return (array_key_exists($label, $this->arguments) ? current($this->arguments[$label]->value()) : null);
+      //return (array_key_exists($label, $this->arguments) ? current($this->arguments[$label]->value()) : null);
+      return (array_key_exists($label, $this->arguments) ? $this->arguments[$label]->value() : null);
     }
 
     public function __isset($label)
     {
-        return (array_key_exists($label, $this->arguments) ? $this->arguments[$label]->isset() : false);
+      return (array_key_exists($label, $this->arguments) ? $this->arguments[$label]->isset() : false);
     }
 
     public function __call($name, $arguments)
@@ -91,7 +92,7 @@ abstract class Parser implements IParser
         $this->action = $action;
     }
 
-    public function __invoke($args)
+    public function __invoke($args = null)
     {
         if (is_string($this->action)) $this->setAction($this->action);
         if (is_callable($this->action))
